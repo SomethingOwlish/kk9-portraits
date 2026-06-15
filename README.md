@@ -13,21 +13,8 @@
 В Foundry: **Add-on Modules → Install Module**, вставить:
 
 ```
-https://github.com/OWNER/kk9-portraits/releases/latest/download/module.json
+https://github.com/SomethingOwlish/kk9-portraits/releases/latest/download/module.json
 ```
-
-(замени `OWNER` на свой GitHub-логин)
-
-### Через git (для разработки)
-Склонировать репозиторий прямо в папку модулей Foundry. Имя папки = `kk9-portraits`:
-
-```bash
-cd /путь/к/FoundryVTT/Data/modules
-git clone https://github.com/OWNER/kk9-portraits.git
-```
-
-Обновление — `git pull` в этой папке. Путь к `Data` смотри в Foundry:
-**Setup → Configuration → User Data Path**.
 
 ## Проверка каркаса
 
