@@ -1,0 +1,112 @@
+/* ===========================================================
+   КК9 — Портреты. Каркас (шаг 1): слой, зоны, простой.
+   Принцип производительности: анимируем только transform/opacity
+   (работает на GPU-композиторе), никаких JS-циклов.
+   =========================================================== */
+
+#kk9-portrait-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;          /* не перехватываем клики по канвасу/UI */
+  z-index: 20;                   /* над канвасом, под основным UI Foundry */
+  overflow: hidden;
+
+  /* Глобальные переменные слоя (пока заглушки под будущие шаги) */
+  --scene-darkness: 0;           /* затемнение по свету сцены (шаг «свет») */
+}
+
+/* ----- Зоны ----- */
+.kk9-zone {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;         /* ноги выровнены по низу */
+  gap: 0.4vw;
+  pointer-events: none;
+}
+
+/* Толпа — позади всех, мелко, по центру, слегка затемнена. */
+.kk9-zone--crowd {
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  justify-content: center;
+  flex-wrap: wrap-reverse;
+  max-width: 80vw;
+  --kk9-zone-height: 26vh;
+  filter: brightness(calc(1 - 0.35 * var(--scene-darkness)));
+  opacity: 0.85;
+}
+
+/* Боковые — без анимации движения (только наложения на след. шагах). */
+.kk9-zone--left  { left: 1vw;  z-index: 2; --kk9-zone-height: 48vh; }
+.kk9-zone--right { right: 1vw; z-index: 2; --kk9-zone-height: 48vh; flex-direction: row-reverse; }
+
+/* Перёд — акцент, крупнее, по центру, сверху. */
+.kk9-zone--front {
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  justify-content: center;
+  --kk9-zone-height: 62vh;
+}
+
+/* ----- Портрет ----- */
+.kk9-portrait {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: calc(var(--kk9-zone-height, 50vh) * var(--kk9-scale, 1));
+  will-change: transform;        /* только у анимируемых элементов */
+  transition: height 0.4s ease, opacity 0.4s ease;
+}
+
+.kk9-portrait__img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: bottom center;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.55));
+}
+
+/* Подпись — скрыта, видна на ховере (ховер включаем только для зон,
+   где портрет интерактивен; в каркасе слой pointer-events:none). */
+.kk9-portrait__name {
+  position: absolute;
+  bottom: -1.6em;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.1em 0.6em;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 0.4em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.kk9-portrait:hover .kk9-portrait__name { opacity: 1; }
+
+/* ----- Анимация простоя (чистый CSS, композитор) ----- */
+/* Перёд и бока чуть «дышат». Толпа не анимируется (дёшево). */
+.kk9-zone--front .kk9-portrait,
+.kk9-zone--left  .kk9-portrait,
+.kk9-zone--right .kk9-portrait {
+  animation: kk9-idle 5.5s ease-in-out infinite;
+}
+.kk9-zone--left  .kk9-portrait { animation-delay: -1.3s; }
+.kk9-zone--right .kk9-portrait { animation-delay: -2.6s; }
+
+@keyframes kk9-idle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-0.6vh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk9-portrait { animation: none !important; }
+}

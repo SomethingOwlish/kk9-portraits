@@ -1,0 +1,29 @@
+{
+  "id": "kk9-portraits",
+  "title": "КК9 — Портреты",
+  "description": "Кинематографичные портреты персонажей и НПС для системы КК9. Отдельный модуль, не вшит в систему.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "12",
+    "verified": "13"
+  },
+  "relationships": {
+    "systems": [
+      { "id": "kk9" }
+    ]
+  },
+  "esmodules": [
+    "scripts/entry.mjs"
+  ],
+  "styles": [
+    "styles/portraits.css"
+  ],
+  "socket": true,
+  "authors": [
+    { "name": "KK9 Team" }
+  ],
+  "url": "",
+  "manifest": "",
+  "download": "",
+  "license": "MIT"
+}
