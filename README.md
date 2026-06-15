@@ -13,7 +13,7 @@
 В Foundry: **Add-on Modules → Install Module**, вставить:
 
 ```
-[https://github.com/SomethingOwlish/kk9-portraits/releases/latest/download/module.json](https://raw.githubusercontent.com/SomethingOwlish/kk9-portraits/main/module.json)
+https://raw.githubusercontent.com/SomethingOwlish/kk9-portraits/main/module.json
 ```
 
 
