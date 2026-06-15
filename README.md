@@ -13,27 +13,8 @@
 В Foundry: **Add-on Modules → Install Module**, вставить:
 
 ```
-https://github.com/SomethingOwlish/kk9-portraits/releases/latest/download/module.json
+https://raw.githubusercontent.com/SomethingOwlish/kk9-portraits/main/module.json
 ```
 
-## Проверка каркаса
-
-Включить модуль в мире, перезагрузить (F5), открыть консоль (F12):
-
-```js
-kk9Portraits.show({ zone: "front", name: "Тест" });   // силуэт по центру
-kk9Portraits.show({ zone: "left",  height: 150 });     // низкий слева
-kk9Portraits.show({ zone: "right", height: 200 });     // высокий справа
-kk9Portraits.demo(40);                                  // стресс-тест толпы
-kk9Portraits.clearAll();
-```
-
-## Релиз
-
-Релизы собираются автоматически. Создать release с тегом вида `v0.1.0` на GitHub —
-workflow подставит версию и ссылки в `module.json`, упакует `module.zip` и приложит
-оба файла к релизу. Ссылка-манифест `releases/latest/...` всегда указывает на свежий.
-
-## Лицензия
 
 MIT — см. [LICENSE](./LICENSE).
