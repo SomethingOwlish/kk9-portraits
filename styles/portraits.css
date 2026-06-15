@@ -20,9 +20,15 @@
   position: absolute;
   bottom: 0;
   display: flex;
+  flex-direction: row;           /* новый портрет всегда правее предыдущего */
   align-items: flex-end;         /* ноги выровнены по низу */
-  gap: 0.4vw;
   pointer-events: none;
+}
+
+/* Нахлёст: каждый следующий сдвинут влево на --kk9-overlap (т.е. заходит
+   на предыдущего), а поскольку он позже в DOM — рисуется ПОВЕРХ. */
+.kk9-portrait + .kk9-portrait {
+  margin-left: calc(-1 * var(--kk9-overlap, 6vw));
 }
 
 /* Толпа — позади всех, мелко, по центру, слегка затемнена. */
@@ -31,16 +37,22 @@
   transform: translateX(-50%);
   z-index: 1;
   justify-content: center;
-  flex-wrap: wrap-reverse;
-  max-width: 80vw;
+  max-width: 92vw;
   --kk9-zone-height: 26vh;
+  --kk9-overlap: 4vw;
   filter: brightness(calc(1 - 0.35 * var(--scene-darkness)));
   opacity: 0.85;
 }
 
 /* Боковые — без анимации движения (только наложения на след. шагах). */
-.kk9-zone--left  { left: 1vw;  z-index: 2; --kk9-zone-height: 48vh; }
-.kk9-zone--right { right: 1vw; z-index: 2; --kk9-zone-height: 48vh; flex-direction: row-reverse; }
+.kk9-zone--left  { left: 1vw;  z-index: 2; justify-content: flex-start; --kk9-zone-height: 48vh; --kk9-overlap: 6vw; }
+.kk9-zone--right { right: 1vw; z-index: 2; flex-direction: row-reverse; justify-content: flex-start; --kk9-zone-height: 48vh; --kk9-overlap: 6vw; }
+
+/* Правая зона — зеркало: нахлёст уходит влево (к центру), новый поверх. */
+.kk9-zone--right .kk9-portrait + .kk9-portrait {
+  margin-left: 0;
+  margin-right: calc(-1 * var(--kk9-overlap, 6vw));
+}
 
 /* Перёд — акцент, крупнее, по центру, сверху. */
 .kk9-zone--front {
@@ -49,6 +61,7 @@
   z-index: 3;
   justify-content: center;
   --kk9-zone-height: 62vh;
+  --kk9-overlap: 8vw;
 }
 
 /* ----- Портрет ----- */
@@ -110,3 +123,205 @@
 @media (prefers-reduced-motion: reduce) {
   .kk9-portrait { animation: none !important; }
 }
+
+/* ----- Окно конфига портрета (контекстное меню актора) ----- */
+.kk9-pc { display: flex; flex-direction: column; gap: 0.8em; min-width: 320px; }
+.kk9-pc__row { display: flex; align-items: center; gap: 0.6em; }
+.kk9-pc__col { display: flex; flex-direction: column; gap: 0.4em; }
+.kk9-pc__preview {
+  width: 84px; height: 84px; object-fit: cover; object-position: top center;
+  border: 1px solid var(--color-border-dark, #666); border-radius: 6px; background: #0003;
+}
+.kk9-pc__height input { width: 6em; }
+.kk9-pc__height small { opacity: 0.7; }
+.kk9-pc__zones { flex-wrap: wrap; }
+.kk9-pc button { white-space: nowrap; }
+
+
+
+/* ======== ДОКИ (один CSS) — верх: зоны | слева: ПИ | низ: НПС ======== */
+
+#kk9-dock-top,
+#kk9-dock-pc,
+#kk9-dock-npc {
+  position: fixed;
+  z-index: 70;
+  color: #eee;
+  font-size: 12px;
+  background: rgba(15, 15, 20, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+}
+
+/* Верхний — зоны/очистка/сворачивание, по центру сверху */
+#kk9-dock-top {
+  top: var(--kk9-top-top, 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 92vw;
+}
+#kk9-dock-top .kk9-dock__label { opacity: 0.8; }
+
+/* Левый — ПИ, вертикальный, перетаскиваемый за заголовок */
+#kk9-dock-pc {
+  left: var(--kk9-pc-left, 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+  width: var(--kk9-pc-width, 92px);
+  height: var(--kk9-pc-height, 70vh);
+}
+#kk9-dock-pc .kk9-dock__head { display: flex; align-items: center; justify-content: center; }
+#kk9-dock-pc .kk9-dock__title { font-weight: 600; user-select: none; }
+#kk9-dock-pc .kk9-dock__toggle { width: 100%; }
+
+/* Нижний — НПС, горизонтальный, по центру снизу */
+#kk9-dock-npc {
+  bottom: var(--kk9-npc-bottom, 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: column;
+  width: var(--kk9-npc-width, 60vw);
+  max-width: 96vw;
+}
+#kk9-dock-npc .kk9-dock__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* Сворачивание (≡ в верхнем доке): прячем тело ПИ и весь НПС */
+#kk9-dock-pc.collapsed,
+#kk9-dock-npc.collapsed { display: none; }
+
+/* Кнопки и поля */
+#kk9-dock-top button,
+#kk9-dock-pc button,
+#kk9-dock-npc button {
+  color: #eee;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+#kk9-dock-top button:hover,
+#kk9-dock-pc button:hover,
+#kk9-dock-npc button:hover { background: rgba(255, 255, 255, 0.14); }
+#kk9-dock-top button.active,
+#kk9-dock-npc button.active { background: rgba(120, 170, 255, 0.32); border-color: rgba(150, 190, 255, 0.7); }
+
+.kk9-dock__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.kk9-dock__chip { font-size: 11px; }
+.kk9-dock__zones { display: flex; gap: 4px; }
+
+.kk9-dock__search,
+.kk9-dock__folder {
+  color: #eee;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+.kk9-dock__search { min-width: 120px; }
+.kk9-dock__folder { max-width: 160px; }
+.kk9-dock__folder option { color: #000; }
+
+/* Списки миниатюр + СКРОЛЛ (для flex важны min-height/min-width: 0) */
+.kk9-dock__list { display: flex; gap: 4px; }
+.kk9-dock__list--col { flex: 1 1 auto; min-height: 0; flex-direction: column; align-items: center; overflow-y: auto; }
+.kk9-dock__list--row { min-width: 0; flex-direction: row; overflow-x: auto; max-width: 92vw; }
+.kk9-dock__empty { opacity: 0.5; font-style: italic; padding: 2px; }
+
+.kk9-dock__thumb {
+  position: relative; flex: 0 0 auto;
+  width: 60px; height: 60px; padding: 0;
+  background-size: cover; background-position: top center;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; overflow: hidden;
+}
+.kk9-dock__thumb.active { border-color: rgba(150, 220, 150, 0.9); box-shadow: 0 0 0 2px rgba(120, 220, 120, 0.5) inset; }
+.kk9-dock__name {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 3px;
+  font-size: 9px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* ======== ЭМОЦИИ: эффекты (на .kk9-portrait__img) ======== */
+.kk9-portrait__img.kk9-fx--shake { animation: kk9fx-shake 0.35s linear infinite; }
+.kk9-portrait__img.kk9-fx--bob   { animation: kk9fx-bob 1.4s ease-in-out infinite; }
+.kk9-portrait__img.kk9-fx--pulse { animation: kk9fx-pulse 1.1s ease-in-out infinite; }
+.kk9-portrait__img.kk9-fx--sway  { animation: kk9fx-sway 2.4s ease-in-out infinite; }
+
+.kk9-portrait__img.kk9-fx--anger { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.5) hue-rotate(-18deg) brightness(1.05); }
+.kk9-portrait__img.kk9-fx--sad   { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(.5) brightness(.92) hue-rotate(190deg); }
+.kk9-portrait__img.kk9-fx--joy   { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.25) brightness(1.12) sepia(.15); }
+.kk9-portrait__img.kk9-fx--fear  { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(.7) brightness(.8) contrast(1.1); }
+.kk9-portrait__img.kk9-fx--sick  { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.2) hue-rotate(60deg) brightness(.95); }
+
+@keyframes kk9fx-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-1.2%); } 75% { transform: translateX(1.2%); } }
+@keyframes kk9fx-bob   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2%); } }
+@keyframes kk9fx-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes kk9fx-sway  { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kk9-portrait__img[class*="kk9-fx--"] { animation: none !important; }
+}
+
+/* ======== ЭМОЦИИ: редактор в окне конфига ======== */
+.kk9-emos { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,.15); padding-top: 8px; }
+.kk9-emos__head { display: flex; align-items: center; gap: 8px; }
+.kk9-emos__head span { font-weight: 600; margin-right: auto; }
+.kk9-emos__empty { opacity: .6; font-style: italic; }
+.kk9-emos__list { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+
+.kk9-emo { display: flex; gap: 8px; align-items: flex-start; padding: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; }
+.kk9-emo.active { border-color: rgba(150,220,150,.9); box-shadow: 0 0 0 1px rgba(120,220,120,.5) inset; }
+.kk9-emo__img { width: 48px; height: 48px; object-fit: cover; object-position: top center; border-radius: 5px; background: #0003; flex: 0 0 auto; }
+.kk9-emo__main { display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.kk9-emo__name { width: 100%; }
+.kk9-emo__fx { display: flex; flex-wrap: wrap; gap: 3px; }
+.kk9-emo__fxchip { font-size: 11px; padding: 1px 5px; border-radius: 4px; cursor: pointer; }
+.kk9-emo__fxchip.active { background: rgba(120,170,255,.32); border-color: rgba(150,190,255,.7); }
+.kk9-emo__actions { display: flex; flex-direction: column; gap: 3px; flex: 0 0 auto; }
+
+/* ======== Быстрая панель переключения эмоций (ховер ГМ) ======== */
+/* Портреты «сквозные» по умолчанию; для ГМ — кликабельны (кроме толпы). */
+#kk9-portrait-layer.kk9-gm .kk9-portrait { pointer-events: auto; }
+#kk9-portrait-layer.kk9-gm .kk9-zone--crowd .kk9-portrait { pointer-events: none; }
+
+.kk9-portrait__emobar {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(15, 15, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  z-index: 5;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.kk9-portrait:hover .kk9-portrait__emobar {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+.kk9-eb__btn {
+  width: 34px; height: 34px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; color: #eee;
+  background-color: rgba(255, 255, 255, 0.08);
+  background-size: cover; background-position: top center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px; cursor: pointer;
+}
+.kk9-eb__btn.active { border-color: rgba(150, 220, 150, 0.95); box-shadow: 0 0 0 2px rgba(120, 220, 120, 0.5) inset; }

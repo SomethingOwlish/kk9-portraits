@@ -1,14 +1,20 @@
 /**
- * КК9 — Портреты. Каркас (шаг 1).
+ * КК9 — Портреты. Сцена + конфиг актора + доки (шаг 3).
  *
- * Что делает этот файл и НЕ делает:
- *  ✔ строит экранный слой #kk9-portrait-layer с четырьмя зонами (crowd/left/right/front);
- *  ✔ даёт API показать/убрать портрет;
- *  ✔ масштаб портрета от роста (ступенчатый, только вниз — см. спеку);
- *  ✔ анимация простоя — ЧИСТЫЙ CSS (transform/opacity), без rAF-цикла;
- *  ✔ демо-стресс на проверку «не лагает».
- *  ✘ реактив к механике, эмоции, доки, сокет, конфиг актора — это следующие шаги.
+ *  ✔ экранный слой с зонами, веер-нахлёст, масштаб от роста, CSS-простой;
+ *  ✔ показ портрета ОТ АКТОРА: картинка из флага (не арт карточки), рост из флага/карточки;
+ *  ✔ конфиг портрета актора (контекстное меню актора → окно);
+ *  ✔ док-панель (ГМ): ПИ + остальные с фильтром по типам, зоны, сворачивание.
+ *  ✘ реактив к механике, эмоции, сокет — следующие шаги.
  */
+
+import {
+  SILHOUETTE, DEFAULT_HEIGHT,
+  getImage, getHeight, setImage, setHeight, resolveActor
+} from "./core/flags.mjs";
+import { openPortraitConfig, registerPortraitConfig } from "./config/portrait-config.mjs";
+import { initDocks } from "./docks/docks.mjs";
+import { getActiveEmotion, resolveEmotionImage, applyEmotionClasses, setActive, emotionBarHTML } from "./emotions/emotions.mjs";
 
 const MODULE_ID = "kk9-portraits";
 const LAYER_ID = "kk9-portrait-layer";
@@ -16,17 +22,13 @@ const LAYER_ID = "kk9-portrait-layer";
 // Порядок = z-порядок снизу вверх: толпа сзади → бока → перёд сверху.
 const ZONES = ["crowd", "left", "right", "front"];
 
-// Заглушка-силуэт из ядра Foundry (пока нет своего ассета).
-const SILHOUETTE = "icons/svg/mystery-man.svg";
-
 // --- Масштаб от роста (см. спеку: бакеты по 5 см, только вниз) ---
 const HEIGHT = {
   REF_BUCKET: 195, // этот бакет = 100% (native), вверх не растягиваем
   STEP: 5,         // 175/177/179 → один бакет
   FACTOR: 0.04,    // насколько уменьшаем за ступень
   MIN: 0.5,
-  MAX: 1.0,
-  DEFAULT: 177     // пусто/мусор → средний рост
+  MAX: 1.0
 };
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -34,7 +36,7 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 /** Рост (число или строка/мусор) → CSS-масштаб портрета. */
 function heightToScale(raw) {
   let cm = typeof raw === "number" ? raw : parseFloat(String(raw ?? "").replace(",", "."));
-  if (!Number.isFinite(cm) || cm <= 0) cm = HEIGHT.DEFAULT;
+  if (!Number.isFinite(cm) || cm <= 0) cm = DEFAULT_HEIGHT;
   const bucket = Math.floor(cm / HEIGHT.STEP) * HEIGHT.STEP;
   const steps = (HEIGHT.REF_BUCKET - bucket) / HEIGHT.STEP;
   return clamp(1 - steps * HEIGHT.FACTOR, HEIGHT.MIN, HEIGHT.MAX);
@@ -72,14 +74,11 @@ function getZoneEl(zone) {
  * @param {string} [opts.id]     ключ, чтобы не плодить дубликаты
  * @returns {HTMLElement}
  */
-function show({ img = SILHOUETTE, name = "", zone = "front", height = HEIGHT.DEFAULT, id = null } = {}) {
+function show({ img = SILHOUETTE, name = "", zone = "front", height = DEFAULT_HEIGHT, id = null } = {}) {
   if (!ZONES.includes(zone)) zone = "front";
   const zoneEl = getZoneEl(zone);
 
-  // Перёд — один акцентный слот за раз.
-  if (zone === "front") zoneEl.replaceChildren();
-
-  // Если задан id и такой портрет уже есть в этой зоне — обновим, не дублируем.
+  // Все зоны держат сколько угодно портретов. id — чтобы не плодить дубликаты.
   let el = id ? zoneEl.querySelector(`.kk9-portrait[data-id="${CSS.escape(id)}"]`) : null;
   if (!el) {
     el = document.createElement("div");
@@ -112,29 +111,94 @@ function clearAll() {
 }
 
 /**
- * Демо-стресс: набросать N силуэтов разного роста по зонам.
- * Смотрим, что слой остаётся плавным (анимация на композиторе).
+ * Показать портрет АКТОРА. Картинка и рост берутся из флагов/карточки
+ * (см. core/flags.mjs). id = actor.id, поэтому повторный показ обновляет,
+ * а не дублирует, и портрет можно адресно убрать.
+ */
+function showActor(ref, { zone = "front" } = {}) {
+  const actor = resolveActor(ref);
+  if (!actor) return null;
+  const el = show({
+    id: actor.id,
+    name: actor.name,
+    img: resolveEmotionImage(actor),
+    height: getHeight(actor),
+    zone
+  });
+  applyEmotionClasses(el?.querySelector(".kk9-portrait__img"), getActiveEmotion(actor));
+  if (el) {
+    el.querySelector(".kk9-portrait__emobar")?.remove();
+    const bar = emotionBarHTML(actor);
+    if (bar) el.insertAdjacentHTML("beforeend", bar);
+  }
+  return el;
+}
+
+/** Убрать портрет конкретного актора из всех зон. */
+function hide(ref) {
+  const actor = resolveActor(ref);
+  const id = actor?.id ?? ref;
+  if (!id) return;
+  const layer = document.getElementById(LAYER_ID);
+  layer?.querySelectorAll(`.kk9-portrait[data-id="${CSS.escape(id)}"]`).forEach((el) => el.remove());
+}
+
+/**
+ * Демо-стресс: раскидать N силуэтов разного роста по ВСЕМ зонам
+ * (в каждой — по несколько). Смотрим одно: остаётся ли плавно.
+ * Это проверка производительности, не игровая функция.
  */
 function demo(count = 24) {
   clearAll();
-  show({ name: "Перёд", zone: "front", height: 185 });
-  show({ name: "Лево", zone: "left", height: 160 });
-  show({ name: "Право", zone: "right", height: 200 });
-  for (let i = 0; i < count; i++) {
-    show({ name: `НПС ${i + 1}`, zone: "crowd", height: 150 + Math.floor(Math.random() * 50), id: `demo-${i}` });
+  // По несколько в каждую видимую зону — показать, что зона держит больше одного.
+  for (let i = 0; i < 3; i++) show({ name: `Перёд ${i + 1}`, zone: "front", height: 165 + i * 15, id: `d-f-${i}` });
+  for (let i = 0; i < 2; i++) show({ name: `Лево ${i + 1}`,  zone: "left",  height: 150 + i * 20, id: `d-l-${i}` });
+  for (let i = 0; i < 2; i++) show({ name: `Право ${i + 1}`, zone: "right", height: 155 + i * 20, id: `d-r-${i}` });
+  // Остаток — в толпу (самый дешёвый слой).
+  const inCrowd = Math.max(0, count - 7);
+  for (let i = 0; i < inCrowd; i++) {
+    show({ name: `Толпа ${i + 1}`, zone: "crowd", height: 150 + Math.floor(Math.random() * 50), id: `d-c-${i}` });
   }
-  console.info(`${MODULE_ID} | демо: ${count} в толпе + 3 в зонах`);
+  console.info(`${MODULE_ID} | демо-стресс: ${count} портретов по всем зонам (толпа: ${inCrowd})`);
 }
 
 Hooks.once("ready", () => {
-  ensureStage();
-  const api = { show, clear, clearAll, demo, heightToScale, ZONES };
+  const layer = ensureStage();
+  // ГМ может наводиться/кликать по портретам (для быстрой панели эмоций);
+  // у игроков портреты остаются «сквозными», канвас не перехватывается.
+  layer.classList.toggle("kk9-gm", !!game.user?.isGM);
+  layer.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-emo-set]");
+    if (!btn) return;
+    const p = btn.closest(".kk9-portrait[data-id]");
+    const a = p && game.actors.get(p.dataset.id);
+    if (a) setActive(a, btn.dataset.emoSet || null);
+  });
+
+  const api = {
+    show, showActor, hide, clear, clearAll, demo, heightToScale, ZONES,
+    setImage, setHeight
+  };
+  api.config = (ref) => openPortraitConfig(ref, api);
   globalThis.kk9Portraits = api;
   game.kk9portraits = api;
+  registerPortraitConfig(api);
+  initDocks(api);
+
+  // Любое изменение актора → перерисовать его портрет, если он на экране
+  // (так эмоция/картинка/рост обновляются у всех клиентов через updateActor).
+  const reshowAll = foundry.utils.debounce(() => {
+    const layer = document.getElementById(LAYER_ID);
+    layer?.querySelectorAll(".kk9-portrait[data-id]").forEach((el) => {
+      const a = game.actors.get(el.dataset.id);
+      if (a) showActor(a, { zone: el.dataset.zone });
+    });
+  }, 80);
+  Hooks.on("updateActor", reshowAll);
   console.info(
-    `${MODULE_ID} | каркас готов. Проверка:\n` +
-    `  kk9Portraits.show({ zone: "front", name: "Тест" })\n` +
-    `  kk9Portraits.demo(40)   // стресс-тест\n` +
-    `  kk9Portraits.clearAll()`
+    `${MODULE_ID} | готов (шаг 3). Док-панель слева (у ГМ).\n` +
+    `  клик по портрету в доке — показать/убрать в выбранной зоне\n` +
+    `  kk9Portraits.config("Имя актора")   // окно настройки\n` +
+    `  kk9Portraits.demo(40)               // стресс-тест`
   );
 });

@@ -2,14 +2,16 @@
   "id": "kk9-portraits",
   "title": "КК9 — Портреты",
   "description": "Кинематографичные портреты персонажей и НПС для системы КК9. Отдельный модуль, не вшит в систему.",
-  "version": "0.1.0",
+  "version": "0.4.1",
   "compatibility": {
     "minimum": "12",
     "verified": "13"
   },
   "relationships": {
     "systems": [
-      { "id": "kk9" }
+      {
+        "id": "kk9"
+      }
     ]
   },
   "esmodules": [
@@ -20,7 +22,9 @@
   ],
   "socket": true,
   "authors": [
-    { "name": "KK9 Team" }
+    {
+      "name": "KK9 Team"
+    }
   ],
   "url": "https://github.com/SomethingOwlish/kk9-portraits",
   "manifest": "https://raw.githubusercontent.com/SomethingOwlish/kk9-portraits/main/module.json",
