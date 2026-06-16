@@ -17,7 +17,8 @@ export const FLAG = {
   IMAGE: "image",            // путь к собственной картинке портрета
   HEIGHT: "height",          // ручной рост (см), ГМ задаёт в конфиге
   EMOTIONS: "emotions",      // массив кастомных эмоций [{id,name,image,effects[]}]
-  ACTIVE: "activeEmotion"    // id активной эмоции (или нет флага = нейтраль)
+  ACTIVE: "activeEmotion",   // id активной эмоции (или нет флага = нейтраль)
+  OVERRIDE: "intensityOverride" // персональная сила реактива (число) или нет флага = авто
 };
 
 /** Картинка портрета: свой флаг → силуэт. Карточный арт не используем. */
@@ -62,4 +63,15 @@ export function resolveActor(ref) {
   if (!ref) return null;
   if (typeof ref === "object" && ref.documentName === "Actor") return ref;
   return game.actors?.get(ref) ?? game.actors?.getName?.(ref) ?? null;
+}
+
+/** Персональная сила реактива портрета: число или null (= авто, как у всех). */
+export function getOverride(actor) {
+  const v = actor?.getFlag?.(MODULE_ID, FLAG.OVERRIDE);
+  return typeof v === "number" ? v : null;
+}
+
+export async function setOverride(actor, factor) {
+  if (factor == null) return actor.unsetFlag(MODULE_ID, FLAG.OVERRIDE);
+  return actor.setFlag(MODULE_ID, FLAG.OVERRIDE, factor);
 }

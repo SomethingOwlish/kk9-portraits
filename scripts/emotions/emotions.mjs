@@ -7,7 +7,7 @@
  * Нет активной → нейтральный портрет (базовая картинка).
  */
 
-import { MODULE_ID, FLAG, getImage, SILHOUETTE } from "../core/flags.mjs";
+import { MODULE_ID, FLAG, getImage, SILHOUETTE, getOverride } from "../core/flags.mjs";
 import { EFFECTS, FX_PREFIX } from "./effects.mjs";
 
 export function getEmotions(actor) {
@@ -60,11 +60,14 @@ export function resolveEmotionImage(actor) {
   return getActiveEmotion(actor)?.image || getImage(actor);
 }
 
-/** Навесить/снять CSS-классы эффектов на <img> портрета. */
+/** Навесить/снять классы ДВИЖЕНИЙ эмоции на <img> (фильтры — в общем filter). */
 export function applyEmotionClasses(imgEl, emotion) {
   if (!imgEl) return;
   for (const fx of EFFECTS) imgEl.classList.remove(FX_PREFIX + fx.id);
-  for (const id of emotion?.effects ?? []) imgEl.classList.add(FX_PREFIX + id);
+  for (const id of emotion?.effects ?? []) {
+    const e = EFFECTS.find((x) => x.id === id);
+    if (e?.kind === "motion") imgEl.classList.add(FX_PREFIX + id);
+  }
 }
 
 const _esc = (s) =>
@@ -74,14 +77,38 @@ const _esc = (s) =>
  * HTML быстрой панели переключения эмоций (только ГМ, появляется при ховере
  * над портретом). Настроек тут нет — только выбор уже созданных эмоций.
  */
+// Персональная сила реактива: метка → множитель (null = авто, как у всех).
+const RX_LEVELS = [
+  ["off", "⊘", "реакция: выкл", 0],
+  ["low", "▽", "приглушить", 0.5],
+  ["auto", "A", "авто (как у всех)", null],
+  ["high", "△", "усилить", 1.6]
+];
+export const RX_MAP = { off: 0, low: 0.5, auto: null, high: 1.6 };
+
 export function emotionBarHTML(actor) {
-  if (!game.user?.isGM) return "";
+  const isGM = !!game.user?.isGM;
+  if (!isGM && !actor?.isOwner) return ""; // игроку — только на своём персонаже
   const emotions = getEmotions(actor);
-  if (!emotions.length) return "";
   const activeId = getActiveId(actor);
-  const neutral = `<button class="kk9-eb__btn${!activeId ? " active" : ""}" data-emo-set="" title="Нейтраль">∅</button>`;
-  const btns = emotions
-    .map((e) => `<button class="kk9-eb__btn${e.id === activeId ? " active" : ""}" data-emo-set="${e.id}" title="${_esc(e.name)}" style="background-image:url('${e.image || SILHOUETTE}')"></button>`)
-    .join("");
-  return `<div class="kk9-portrait__emobar">${neutral}${btns}</div>`;
+
+  let parts = "";
+  if (emotions.length) {
+    parts += `<button class="kk9-eb__btn${!activeId ? " active" : ""}" data-emo-set="" title="Нейтраль">∅</button>`;
+    parts += emotions
+      .map((e) => `<button class="kk9-eb__btn${e.id === activeId ? " active" : ""}" data-emo-set="${e.id}" title="${_esc(e.name)}" style="background-image:url('${e.image || SILHOUETTE}')"></button>`)
+      .join("");
+  }
+
+  // Ряд силы реактива (override) — ТОЛЬКО ГМ.
+  if (isGM) {
+    if (emotions.length) parts += `<span class="kk9-eb__sep"></span>`;
+    const ov = getOverride(actor);
+    parts += RX_LEVELS
+      .map(([k, sym, title, val]) => `<button class="kk9-eb__rx${ov === val ? " active" : ""}" data-rx="${k}" title="${title}">${sym}</button>`)
+      .join("");
+  }
+
+  if (!parts) return ""; // игрок без эмоций — переключать нечего
+  return `<div class="kk9-portrait__emobar">${parts}</div>`;
 }

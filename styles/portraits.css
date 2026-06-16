@@ -15,9 +15,9 @@
   --scene-darkness: 0;           /* затемнение по свету сцены (шаг «свет») */
 
   /* Базовые высоты зон (= размер при росте самого высокого бакета). Тюнятся одним числом. */
-  --kk9-front-h: 98vh;
-  --kk9-side-h: 85vh;
-  --kk9-crowd-h: 67vh;
+  --kk9-front-h: 72vh;
+  --kk9-side-h: 60vh;
+  --kk9-crowd-h: 40vh;
 }
 
 /* ----- Зоны ----- */
@@ -89,6 +89,7 @@
   user-select: none;
   -webkit-user-drag: none;
   filter: drop-shadow(0 0.4vh 0.8vh rgba(0, 0, 0, 0.55));
+  transition: filter 0.4s ease;
 }
 
 /* Подпись — скрыта, видна на ховере (ховер включаем только для зон,
@@ -261,12 +262,6 @@
 .kk9-portrait__img.kk9-fx--pulse { animation: kk9fx-pulse 1.1s ease-in-out infinite; }
 .kk9-portrait__img.kk9-fx--sway  { animation: kk9fx-sway 2.4s ease-in-out infinite; }
 
-.kk9-portrait__img.kk9-fx--anger { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.5) hue-rotate(-18deg) brightness(1.05); }
-.kk9-portrait__img.kk9-fx--sad   { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(.5) brightness(.92) hue-rotate(190deg); }
-.kk9-portrait__img.kk9-fx--joy   { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.25) brightness(1.12) sepia(.15); }
-.kk9-portrait__img.kk9-fx--fear  { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(.7) brightness(.8) contrast(1.1); }
-.kk9-portrait__img.kk9-fx--sick  { filter: drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,.55)) saturate(1.2) hue-rotate(60deg) brightness(.95); }
-
 @keyframes kk9fx-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-1.2%); } 75% { transform: translateX(1.2%); } }
 @keyframes kk9fx-bob   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2%); } }
 @keyframes kk9fx-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
@@ -295,8 +290,8 @@
 
 /* ======== Быстрая панель переключения эмоций (ховер ГМ) ======== */
 /* Портреты «сквозные» по умолчанию; для ГМ — кликабельны (кроме толпы). */
-#kk9-portrait-layer.kk9-gm .kk9-portrait { pointer-events: auto; }
-#kk9-portrait-layer.kk9-gm .kk9-zone--crowd .kk9-portrait { pointer-events: none; }
+.kk9-portrait.kk9-interactive { pointer-events: auto; }
+.kk9-zone--crowd .kk9-portrait { pointer-events: none; }
 
 .kk9-portrait__emobar {
   position: absolute;
@@ -330,3 +325,39 @@
   border-radius: 5px; cursor: pointer;
 }
 .kk9-eb__btn.active { border-color: rgba(150, 220, 150, 0.95); box-shadow: 0 0 0 2px rgba(120, 220, 120, 0.5) inset; }
+
+/* Ряд силы реактива (override) в той же hover-панели */
+.kk9-eb__sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.25); margin: 0 3px; }
+.kk9-eb__rx {
+  width: 26px; height: 34px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #eee;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px; cursor: pointer;
+}
+.kk9-eb__rx.active { border-color: rgba(255, 200, 120, 0.95); box-shadow: 0 0 0 2px rgba(255, 190, 90, 0.5) inset; }
+
+/* ======== РЕАКТИВНЫЙ СЛОЙ A ========
+   Цвет/десатурация/свечение собираются в общий filter картинки (в JS),
+   поэтому действуют ТОЛЬКО по пикселям, прозрачный фон не трогаем.
+   Здесь — только глитч оверкапа и бейджи статусов. */
+.kk9-portrait.kk9-overcap .kk9-portrait__img { animation: kk9-glitch 0.9s steps(2, end) infinite; }
+@keyframes kk9-glitch { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-0.6%); } 40% { transform: translateX(0.6%); } 60% { transform: translateX(-0.3%); } }
+
+/* Бейджи статусов Cat-1 */
+.kk9-portrait__status { position: absolute; top: 6px; right: 6px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; z-index: 4; }
+.kk9-status-badge { width: 24px; height: 24px; border-radius: 5px; border: 2px solid rgba(255,255,255,.5); background: rgba(0,0,0,.4); object-fit: cover; animation: kk9-badge 1.6s ease-in-out infinite; }
+.kk9-status--bleed    { border-color: #c0303a; }
+.kk9-status--burn     { border-color: #e07a1f; }
+.kk9-status--electric { border-color: #5bd0ff; }
+.kk9-status--acid     { border-color: #8ec63f; }
+.kk9-status--cold     { border-color: #9fd8ff; }
+.kk9-status--poison   { border-color: #7fbf4f; }
+.kk9-status--mental   { border-color: #b07fff; }
+@keyframes kk9-badge { 0%,100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.08); opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kk9-portrait.kk9-overcap .kk9-portrait__img,
+  .kk9-status-badge { animation: none !important; }
+}

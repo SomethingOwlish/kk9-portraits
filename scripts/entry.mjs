@@ -10,12 +10,16 @@
 
 import {
   SILHOUETTE, DEFAULT_HEIGHT,
-  getImage, getHeight, setImage, setHeight, resolveActor
+  getImage, getHeight, setImage, setHeight, resolveActor, setOverride
 } from "./core/flags.mjs";
 import { openPortraitConfig, registerPortraitConfig } from "./config/portrait-config.mjs";
 import { initDocks } from "./docks/docks.mjs";
-import { getActiveEmotion, resolveEmotionImage, applyEmotionClasses, setActive, emotionBarHTML } from "./emotions/emotions.mjs";
+import { getActiveEmotion, resolveEmotionImage, applyEmotionClasses, setActive, emotionBarHTML, RX_MAP } from "./emotions/emotions.mjs";
+import { emotionFilter } from "./emotions/effects.mjs";
 import { initSocket, sendPresence } from "./net/socket.mjs";
+import { reactiveFilter, applyReactiveState } from "./reactive/layer-a.mjs";
+
+const BASE_SHADOW = "drop-shadow(0 0.4vh 0.8vh rgba(0,0,0,0.55))";
 
 const MODULE_ID = "kk9-portraits";
 const LAYER_ID = "kk9-portrait-layer";
@@ -87,6 +91,7 @@ function show({ img = SILHOUETTE, name = "", zone = "front", height = DEFAULT_HE
     if (id) el.dataset.id = id;
     el.innerHTML = `
       <img class="kk9-portrait__img" alt="">
+      <div class="kk9-portrait__status"></div>
       <span class="kk9-portrait__name"></span>
     `;
     zoneEl.appendChild(el);
@@ -128,12 +133,19 @@ function showActor(ref, { zone = "front", broadcast = true } = {}) {
     height: getHeight(actor),
     zone
   });
-  applyEmotionClasses(el?.querySelector(".kk9-portrait__img"), getActiveEmotion(actor));
+  const emo = getActiveEmotion(actor);
+  const img = el?.querySelector(".kk9-portrait__img");
+  applyEmotionClasses(img, emo);
+  if (img) {
+    img.style.filter = [BASE_SHADOW, emotionFilter(emo?.effects ?? []), reactiveFilter(actor)].filter(Boolean).join(" ");
+  }
   if (el) {
     el.querySelector(".kk9-portrait__emobar")?.remove();
     const bar = emotionBarHTML(actor);
     if (bar) el.insertAdjacentHTML("beforeend", bar);
   }
+  applyReactiveState(el, actor);
+  if (el) el.classList.toggle("kk9-interactive", !!(game.user?.isGM || actor.isOwner));
   if (broadcast) sendPresence({ t: "show", actorId: actor.id, zone });
   return el;
 }
@@ -178,15 +190,22 @@ function demo(count = 24) {
 
 Hooks.once("ready", () => {
   const layer = ensureStage();
-  // ГМ может наводиться/кликать по портретам (для быстрой панели эмоций);
-  // у игроков портреты остаются «сквозными», канвас не перехватывается.
-  layer.classList.toggle("kk9-gm", !!game.user?.isGM);
+  // ГМ — на любом портрете; игрок — только на своём (класс kk9-interactive
+  // ставится в showActor). Чужие портреты «сквозные», канвас не перехватывается.
   layer.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-emo-set]");
-    if (!btn) return;
-    const p = btn.closest(".kk9-portrait[data-id]");
-    const a = p && game.actors.get(p.dataset.id);
-    if (a) setActive(a, btn.dataset.emoSet || null);
+    if (btn) {
+      const p = btn.closest(".kk9-portrait[data-id]");
+      const a = p && game.actors.get(p.dataset.id);
+      if (a) setActive(a, btn.dataset.emoSet || null);
+      return;
+    }
+    const rx = e.target.closest("[data-rx]");
+    if (rx) {
+      const p = rx.closest(".kk9-portrait[data-id]");
+      const a = p && game.actors.get(p.dataset.id);
+      if (a) setOverride(a, RX_MAP[rx.dataset.rx]);
+    }
   });
 
   const api = {
@@ -209,6 +228,22 @@ Hooks.once("ready", () => {
     });
   }, 80);
   Hooks.on("updateActor", reshowAll);
+  // статусы — это items; реагируем, чтобы бейджи появлялись/исчезали
+  Hooks.on("createItem", reshowAll);
+  Hooks.on("deleteItem", reshowAll);
+  Hooks.on("updateItem", reshowAll);
+
+  // ГМ-регулятор интенсивности реактивного слоя (виден в настройках модуля у ГМ)
+  game.settings.register(MODULE_ID, "intensity", {
+    name: "КК9-Портреты: интенсивность реакции",
+    hint: "Насколько сильно портрет реагирует на механику (урон, напряжение, оверкап, статусы).",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: { off: "выкл", subtle: "тонко", normal: "норма", brutal: "жёстко" },
+    default: "normal",
+    onChange: () => reshowAll()
+  });
 
   initSocket({
     show: (id, zone) => { const a = game.actors.get(id); if (a) showActor(a, { zone, broadcast: false }); },
