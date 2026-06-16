@@ -15,6 +15,7 @@ import {
 import { openPortraitConfig, registerPortraitConfig } from "./config/portrait-config.mjs";
 import { initDocks } from "./docks/docks.mjs";
 import { getActiveEmotion, resolveEmotionImage, applyEmotionClasses, setActive, emotionBarHTML } from "./emotions/emotions.mjs";
+import { initSocket, sendPresence } from "./net/socket.mjs";
 
 const MODULE_ID = "kk9-portraits";
 const LAYER_ID = "kk9-portrait-layer";
@@ -24,10 +25,10 @@ const ZONES = ["crowd", "left", "right", "front"];
 
 // --- Масштаб от роста (см. спеку: бакеты по 5 см, только вниз) ---
 const HEIGHT = {
-  REF_BUCKET: 195, // этот бакет = 100% (native), вверх не растягиваем
+  REF_BUCKET: 190, // этот бакет = 100% (native), вверх не растягиваем
   STEP: 5,         // 175/177/179 → один бакет
-  FACTOR: 0.04,    // насколько уменьшаем за ступень
-  MIN: 0.5,
+  FACTOR: 0.022,   // мягкий шаг: разница заметна, но не радикальна
+  MIN: 0.7,
   MAX: 1.0
 };
 
@@ -102,12 +103,14 @@ function clear(zone) {
   if (!layer) return;
   if (!zone) return clearAll();
   layer.querySelector(`.kk9-zone--${zone}`)?.replaceChildren();
+  sendPresence({ t: "clear", zone });
 }
 
 function clearAll() {
   const layer = document.getElementById(LAYER_ID);
   if (!layer) return;
   for (const zone of ZONES) layer.querySelector(`.kk9-zone--${zone}`)?.replaceChildren();
+  sendPresence({ t: "clearAll" });
 }
 
 /**
@@ -115,7 +118,7 @@ function clearAll() {
  * (см. core/flags.mjs). id = actor.id, поэтому повторный показ обновляет,
  * а не дублирует, и портрет можно адресно убрать.
  */
-function showActor(ref, { zone = "front" } = {}) {
+function showActor(ref, { zone = "front", broadcast = true } = {}) {
   const actor = resolveActor(ref);
   if (!actor) return null;
   const el = show({
@@ -131,6 +134,7 @@ function showActor(ref, { zone = "front" } = {}) {
     const bar = emotionBarHTML(actor);
     if (bar) el.insertAdjacentHTML("beforeend", bar);
   }
+  if (broadcast) sendPresence({ t: "show", actorId: actor.id, zone });
   return el;
 }
 
@@ -141,6 +145,16 @@ function hide(ref) {
   if (!id) return;
   const layer = document.getElementById(LAYER_ID);
   layer?.querySelectorAll(`.kk9-portrait[data-id="${CSS.escape(id)}"]`).forEach((el) => el.remove());
+  sendPresence({ t: "hide", actorId: id });
+}
+
+/** Снимок текущего присутствия (для догрузки новым клиентам). */
+function currentState() {
+  const out = [];
+  document.getElementById(LAYER_ID)
+    ?.querySelectorAll(".kk9-portrait[data-id]")
+    .forEach((el) => out.push({ actorId: el.dataset.id, zone: el.dataset.zone }));
+  return out;
 }
 
 /**
@@ -191,10 +205,18 @@ Hooks.once("ready", () => {
     const layer = document.getElementById(LAYER_ID);
     layer?.querySelectorAll(".kk9-portrait[data-id]").forEach((el) => {
       const a = game.actors.get(el.dataset.id);
-      if (a) showActor(a, { zone: el.dataset.zone });
+      if (a) showActor(a, { zone: el.dataset.zone, broadcast: false });
     });
   }, 80);
   Hooks.on("updateActor", reshowAll);
+
+  initSocket({
+    show: (id, zone) => { const a = game.actors.get(id); if (a) showActor(a, { zone, broadcast: false }); },
+    hide: (id) => hide(id),
+    clear: (zone) => clear(zone),
+    clearAll: () => clearAll(),
+    state: () => currentState()
+  });
   console.info(
     `${MODULE_ID} | готов (шаг 3). Док-панель слева (у ГМ).\n` +
     `  клик по портрету в доке — показать/убрать в выбранной зоне\n` +

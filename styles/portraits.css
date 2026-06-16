@@ -13,6 +13,11 @@
 
   /* Глобальные переменные слоя (пока заглушки под будущие шаги) */
   --scene-darkness: 0;           /* затемнение по свету сцены (шаг «свет») */
+
+  /* Базовые высоты зон (= размер при росте самого высокого бакета). Тюнятся одним числом. */
+  --kk9-front-h: 98vh;
+  --kk9-side-h: 85vh;
+  --kk9-crowd-h: 67vh;
 }
 
 /* ----- Зоны ----- */
@@ -38,15 +43,15 @@
   z-index: 1;
   justify-content: center;
   max-width: 92vw;
-  --kk9-zone-height: 26vh;
+  --kk9-zone-height: var(--kk9-crowd-h, 40vh);
   --kk9-overlap: 4vw;
   filter: brightness(calc(1 - 0.35 * var(--scene-darkness)));
   opacity: 0.85;
 }
 
 /* Боковые — без анимации движения (только наложения на след. шагах). */
-.kk9-zone--left  { left: 1vw;  z-index: 2; justify-content: flex-start; --kk9-zone-height: 48vh; --kk9-overlap: 6vw; }
-.kk9-zone--right { right: 1vw; z-index: 2; flex-direction: row-reverse; justify-content: flex-start; --kk9-zone-height: 48vh; --kk9-overlap: 6vw; }
+.kk9-zone--left  { left: 1vw;  z-index: 2; justify-content: flex-start; --kk9-zone-height: var(--kk9-side-h, 60vh); --kk9-overlap: 6vw; }
+.kk9-zone--right { right: 1vw; z-index: 2; flex-direction: row-reverse; justify-content: flex-start; --kk9-zone-height: var(--kk9-side-h, 60vh); --kk9-overlap: 6vw; }
 
 /* Правая зона — зеркало: нахлёст уходит влево (к центру), новый поверх. */
 .kk9-zone--right .kk9-portrait + .kk9-portrait {
@@ -60,7 +65,7 @@
   transform: translateX(-50%);
   z-index: 3;
   justify-content: center;
-  --kk9-zone-height: 62vh;
+  --kk9-zone-height: var(--kk9-front-h, 72vh);
   --kk9-overlap: 8vw;
 }
 
