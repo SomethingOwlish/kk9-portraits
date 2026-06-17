@@ -37,7 +37,10 @@ function shownIds() {
 }
 
 function thumbHTML(actor, active) {
-  return `<button class="kk9-dock__thumb${active ? " active" : ""}" data-actor="${actor.id}" title="${esc(actor.name)}" style="background-image:url('${getImage(actor)}')"><span class="kk9-dock__name">${esc(actor.name)}</span></button>`;
+  // В доке — картинка из карточки актора (узнаваемость); на сцену идёт портрет модуля.
+  const img = actor.img || getImage(actor);
+  const bg = `background-image:url('${img}');background-position:center top;background-size:cover;background-repeat:no-repeat;`;
+  return `<button class="kk9-dock__thumb${active ? " active" : ""}" data-actor="${actor.id}" title="${esc(actor.name)}" style="${bg}"><span class="kk9-dock__name">${esc(actor.name)}</span></button>`;
 }
 
 /* ---------- запоминание позиции перетаскиваемых доков ---------- */

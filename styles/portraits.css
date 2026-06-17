@@ -246,7 +246,7 @@
 .kk9-dock__thumb {
   position: relative; flex: 0 0 auto;
   width: 60px; height: 60px; padding: 0;
-  background-size: cover; background-position: top center;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
   border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px; overflow: hidden;
 }
 .kk9-dock__thumb.active { border-color: rgba(150, 220, 150, 0.9); box-shadow: 0 0 0 2px rgba(120, 220, 120, 0.5) inset; }
